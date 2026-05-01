@@ -1,107 +1,104 @@
-import { query } from '../db/pool.js';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { validationResult, body } from 'express-validator';
+const User = require('../models/User');
+const jwt = require('jsonwebtoken');
+const { validationResult } = require('express-validator');
 
-// Validation rules
-export const signupValidation = [
-  body('email').isEmail().normalizeEmail(),
-  body('password').isLength({ min: 6 }),
-  body('name').notEmpty().trim()
-];
-
-export const loginValidation = [
-  body('email').isEmail().normalizeEmail(),
-  body('password').notEmpty()
-];
+// Generate JWT Token
+const generateToken = (userId, role) => {
+  return jwt.sign(
+    { userId, role },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+};
 
 // Signup
-export const signup = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { email, password, name } = req.body;
-
+exports.signup = async (req, res) => {
   try {
-    // Check if user exists
-    const userCheck = await query('SELECT * FROM users WHERE email = $1', [email]);
-    if (userCheck.rows.length > 0) {
-      return res.status(400).json({ error: 'User already exists' });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const { name, email, password, role } = req.body;
 
-    // Create user
-    const result = await query(
-      'INSERT INTO users (email, password, name, role) VALUES ($1, $2, $3, $4) RETURNING id, email, name, role',
-      [email, hashedPassword, name, 'MEMBER']
-    );
+    // Check if user exists
+    let user = await User.findOne({ email });
+    if (user) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
 
-    const user = result.rows[0];
-    const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '7d' });
+    // Create new user
+    user = new User({
+      name,
+      email,
+      password,
+      role: role || 'member',
+    });
+
+    await user.save();
+
+    const token = generateToken(user._id, user.role);
 
     res.status(201).json({
       message: 'User created successfully',
-      user,
-      token
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
 // Login
-export const login = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { email, password } = req.body;
-
+exports.login = async (req, res) => {
   try {
-    const result = await query('SELECT * FROM users WHERE email = $1', [email]);
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    const user = result.rows[0];
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const { email, password } = req.body;
 
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    const token = jwt.sign(
-      { id: user.id, email: user.email, name: user.name, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // Check password
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    const token = generateToken(user._id, user.role);
 
     res.json({
       message: 'Login successful',
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
-      token
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
 // Get current user
-export const getCurrentUser = async (req, res) => {
+exports.getCurrentUser = async (req, res) => {
   try {
-    const result = await query('SELECT id, email, name, role FROM users WHERE id = $1', [req.user.id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    res.json(result.rows[0]);
+    const user = await User.findById(req.userId).select('-password');
+    res.json(user);
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };

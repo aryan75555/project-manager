@@ -1,83 +1,73 @@
-# ProjectHub - Project Management Web App
+# Project Manager Application
 
-A full-stack project management application with role-based access control, built with Node.js, Express, React, and PostgreSQL.
+A full-stack web application for managing projects, assigning tasks, and tracking progress with role-based access control.
 
-## 🚀 Features
+## Features
 
-- **Authentication**: Secure signup/login with JWT tokens
-- **Project Management**: Create, manage, and organize projects
-- **Team Management**: Add members to projects with role-based access (Admin/Member)
-- **Task Tracking**: Create, assign, and track tasks with status and priority
-- **Dashboard**: Real-time overview of tasks, projects, and progress
-- **RBAC (Role-Based Access Control)**: Admin and Member roles with different permissions
-- **Responsive UI**: Modern, mobile-friendly interface with Tailwind CSS
+✅ **Authentication** - Secure signup/login with JWT
+✅ **Project Management** - Create, manage, and delete projects
+✅ **Task Management** - Create, assign, and track task status
+✅ **Dashboard** - Real-time overview of tasks, status, and overdue items
+✅ **Role-Based Access Control** - Admin and Member roles
+✅ **Team Management** - Add/remove team members from projects
+✅ **Status Tracking** - Pending, In Progress, Completed
+✅ **Priority Levels** - Low, Medium, High priority tasks
 
-## 📋 Tech Stack
+## Tech Stack
 
-### Backend
-- **Runtime**: Node.js
-- **Framework**: Express.js
-- **Database**: PostgreSQL
-- **Authentication**: JWT (jsonwebtoken)
-- **Password Hashing**: bcryptjs
-- **Validation**: express-validator
+**Backend:**
+- Node.js + Express.js
+- MongoDB (NoSQL Database)
+- JWT Authentication
+- Bcryptjs for password hashing
 
-### Frontend
-- **Framework**: React 18
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS
-- **Routing**: React Router
-- **HTTP Client**: Axios
+**Frontend:**
+- React 18
+- React Router v6
+- Axios for API calls
+- CSS3 for styling
 
-## 📁 Project Structure
+**Deployment:**
+- Railway
+
+## Project Structure
 
 ```
 project-manager/
 ├── backend/
-│   ├── server.js                 # Express server setup
-│   ├── package.json              # Backend dependencies
-│   ├── .env.example              # Environment variables template
-│   ├── db/
-│   │   ├── pool.js              # Database connection pool
-│   │   └── init.js              # Database initialization
-│   ├── middleware/
-│   │   └── auth.js              # Authentication & authorization
-│   ├── controllers/
-│   │   ├── authController.js    # Auth logic
-│   │   ├── projectController.js # Project logic
-│   │   └── taskController.js    # Task logic
-│   └── routes/
-│       ├── auth.js              # Auth routes
-│       ├── projects.js          # Project routes
-│       └── tasks.js             # Task routes
-│
+│   ├── controllers/       # Request handlers
+│   ├── middleware/        # Authentication & authorization
+│   ├── models/            # Database schemas
+│   ├── routes/            # API endpoints
+│   ├── db/               # Database connection
+│   ├── server.js         # Main server file
+│   ├── package.json
+│   └── .env
 ├── frontend/
 │   ├── src/
-│   │   ├── main.jsx             # React entry point
-│   │   ├── App.jsx              # Main component
-│   │   ├── index.css            # Global styles
-│   │   ├── components/          # Reusable components
-│   │   ├── pages/               # Page components
-│   │   ├── services/            # API services
-│   │   └── hooks/               # Custom hooks
-│   ├── package.json             # Frontend dependencies
-│   ├── vite.config.js           # Vite configuration
-│   ├── tailwind.config.js       # Tailwind configuration
-│   └── index.html               # HTML entry point
-│
-└── README.md                    # This file
+│   │   ├── components/   # React components
+│   │   ├── pages/        # Page components
+│   │   ├── services/     # API service calls
+│   │   ├── hooks/        # Custom React hooks
+│   │   ├── styles/       # CSS files
+│   │   ├── App.js
+│   │   └── index.js
+│   ├── public/
+│   ├── package.json
+│   └── .env
+└── README.md
 ```
 
-## 🔧 Installation
+## Installation & Setup
 
 ### Prerequisites
-- Node.js 16+
-- PostgreSQL 12+
+- Node.js (v14 or higher)
 - npm or yarn
+- MongoDB account (Atlas or local)
 
 ### Backend Setup
 
-1. Navigate to backend folder:
+1. Navigate to backend directory:
 ```bash
 cd backend
 ```
@@ -87,30 +77,24 @@ cd backend
 npm install
 ```
 
-3. Create `.env` file from `.env.example`:
-```bash
-cp .env.example .env
+3. Create `.env` file with:
 ```
-
-4. Update `.env` with your PostgreSQL credentials:
-```env
 PORT=5000
-DATABASE_URL=postgresql://user:password@localhost:5432/project_manager
-JWT_SECRET=your_super_secret_jwt_key_change_this
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/project-manager
+JWT_SECRET=your_secret_key_here
 NODE_ENV=development
-CLIENT_URL=http://localhost:3000
 ```
 
-5. Start the backend server:
+4. Start the server:
 ```bash
 npm start
+# or for development with auto-reload:
+npm run dev
 ```
-
-The server will initialize the database on startup.
 
 ### Frontend Setup
 
-1. Navigate to frontend folder (in new terminal):
+1. Navigate to frontend directory:
 ```bash
 cd frontend
 ```
@@ -120,152 +104,138 @@ cd frontend
 npm install
 ```
 
-3. Start the development server:
-```bash
-npm run dev
+3. Create `.env` file with:
+```
+REACT_APP_API_URL=http://localhost:5000/api
 ```
 
-The app will open at `http://localhost:3000`
+4. Start the development server:
+```bash
+npm start
+```
 
-## 🔑 API Endpoints
+The frontend will open at `http://localhost:3000`
+
+## API Endpoints
 
 ### Authentication
 - `POST /api/auth/signup` - Register new user
 - `POST /api/auth/login` - Login user
-- `GET /api/auth/me` - Get current user (requires token)
+- `GET /api/auth/me` - Get current user (Protected)
 
 ### Projects
-- `POST /api/projects` - Create project (Admin)
-- `GET /api/projects` - Get user's projects
-- `GET /api/projects/:projectId` - Get project details
-- `PUT /api/projects/:projectId` - Update project (Admin)
-- `POST /api/projects/:projectId/members` - Add member (Admin)
-- `GET /api/projects/:projectId/members` - Get project members
-- `DELETE /api/projects/:projectId/members/:memberId` - Remove member (Admin)
+- `GET /api/projects` - Get all user projects (Protected)
+- `POST /api/projects` - Create new project (Protected)
+- `GET /api/projects/:projectId` - Get single project (Protected)
+- `PUT /api/projects/:projectId` - Update project (Protected)
+- `DELETE /api/projects/:projectId` - Delete project (Protected)
+- `POST /api/projects/:projectId/members` - Add member (Protected)
+- `DELETE /api/projects/:projectId/members` - Remove member (Protected)
 
 ### Tasks
-- `POST /api/tasks/:projectId` - Create task
-- `GET /api/tasks/dashboard/stats` - Get dashboard stats
-- `GET /api/tasks/my-tasks` - Get user's tasks
-- `GET /api/tasks/:projectId` - Get project tasks
-- `PUT /api/tasks/:projectId/:taskId` - Update task
-- `DELETE /api/tasks/:projectId/:taskId` - Delete task (Admin)
+- `GET /api/tasks` - Get user's assigned tasks (Protected)
+- `POST /api/tasks/project/:projectId` - Create task in project (Protected)
+- `GET /api/tasks/project/:projectId` - Get project tasks (Protected)
+- `GET /api/tasks/:taskId` - Get single task (Protected)
+- `PUT /api/tasks/:taskId` - Update task (Protected)
+- `DELETE /api/tasks/:taskId` - Delete task (Protected)
+- `GET /api/tasks/stats/dashboard` - Get dashboard statistics (Protected)
 
-## 👥 User Roles
+## Usage
 
-### Admin
-- Create projects
-- Manage team members
-- Delete tasks
-- Update project details
+### Creating a Project
+1. Login to your account
+2. Navigate to "Projects" page
+3. Click "+ New Project" button
+4. Fill in project details and submit
+5. Start adding tasks to your project
 
-### Member
-- View assigned projects
-- Create and manage tasks
-- Update task status
-- View team members
+### Managing Tasks
+1. Open a project
+2. Click "+ New Task" button
+3. Enter task details (title, description, priority, due date)
+4. Update task status by selecting from dropdown
+5. Delete tasks as needed
 
-## 🗄️ Database Schema
+### Team Management
+1. Open a project you own
+2. Click "+ Add Member" button
+3. Enter member email or ID
+4. Member will be added to project
 
-### Users Table
-- id, email (unique), password, name, role, created_at, updated_at
+## Role-Based Access
 
-### Projects Table
-- id, name, description, admin_id, status, created_at, updated_at
+**Admin:**
+- Can create, edit, and delete any project
+- Can manage all tasks
+- Can remove any members from projects
 
-### Project Members Table
-- id, project_id, user_id, role, joined_at (unique constraint on project_id, user_id)
+**Member:**
+- Can create projects and be owner
+- Can view and update assigned tasks
+- Can view project details and team members
 
-### Tasks Table
-- id, project_id, title, description, assigned_to, status, priority, due_date, created_by, created_at, updated_at
+## Deployment on Railway
 
-## 🚀 Deployment on Railway
+1. **Create Railway Account** - Sign up at [railway.app](https://railway.app)
 
-### Steps:
+2. **Connect GitHub Repository**
+   - Link your GitHub account to Railway
+   - Select this project repository
 
-1. **Create Railway account** at [railway.app](https://railway.app)
+3. **Configure Environment Variables**
+   - In Railway dashboard, add these variables:
+     - `MONGODB_URI`: Your MongoDB connection string
+     - `JWT_SECRET`: Your JWT secret key
+     - `NODE_ENV`: Set to `production`
+     - `PORT`: Set to `5000`
 
-2. **Connect GitHub**:
-   - Go to Railway dashboard
-   - Click "New Project"
-   - Select "Deploy from GitHub"
-   - Authorize and select your repository
+4. **Deploy**
+   - Railway will automatically deploy when you push to main branch
+   - Frontend will be built automatically
+   - Backend will start with `npm start`
 
-3. **Configure Backend Service**:
-   - Add environment variables in Railway:
-     - `DATABASE_URL` - Auto-provided by PostgreSQL plugin
-     - `JWT_SECRET` - Generate a secure string
-     - `NODE_ENV` - Set to `production`
-     - `CLIENT_URL` - Your deployed frontend URL
-   - Set start command: `npm start`
+5. **Update Frontend API URL**
+   - After deployment, update `REACT_APP_API_URL` in frontend `.env.production`
+   - Use your Railway backend URL
 
-4. **Configure Frontend Service**:
-   - Add build command: `npm run build`
-   - Add start command: `npm run preview`
-   - Add environment variable `VITE_API_URL` pointing to backend URL
+## Demo
 
-5. **Add PostgreSQL Plugin**:
-   - In Railway, add PostgreSQL as a service
-   - It will automatically provide `DATABASE_URL`
+[Demo video link to be added after deployment]
 
-6. **Deploy**:
-   - Push to GitHub
-   - Railway will automatically deploy on push
+## Testing
 
-## 📱 Usage
+### Test Account
+- Email: test@example.com
+- Password: password123
 
-1. **Sign Up**: Create an account with email and password
-2. **Create Project**: If Admin, create a new project
-3. **Add Team Members**: Invite members by email
-4. **Create Tasks**: Add tasks to the project
-5. **Assign Tasks**: Assign tasks to team members
-6. **Track Progress**: Monitor task status and completion
-7. **Dashboard**: View all your tasks and statistics
+Or create a new account at signup page.
 
-## 🔒 Security Features
+## Future Enhancements
 
-- JWT-based authentication
-- Password hashing with bcryptjs
-- Role-based access control
-- Input validation with express-validator
-- SQL injection protection with parameterized queries
-- CORS configuration
-- Helmet.js for HTTP headers security
+- [ ] Task comments and activity timeline
+- [ ] File attachments for tasks
+- [ ] Task labels and filtering
+- [ ] Team notifications
+- [ ] Progress charts and reports
+- [ ] Calendar view for tasks
+- [ ] Mobile app support
+- [ ] Email notifications
+- [ ] Real-time collaboration
 
-## 📊 Dashboard Features
+## Contributing
 
-- Total tasks count
-- Tasks by status (To Do, In Progress, Completed)
-- Overdue tasks counter
-- Projects count
-- Task list with filtering options
-- Priority indicators
-- Status badges
+Feel free to fork this repository and submit pull requests.
 
-## 🐛 Troubleshooting
+## License
 
-### Database Connection Error
-- Verify PostgreSQL is running
-- Check `DATABASE_URL` in `.env`
-- Ensure database name exists
+MIT License
 
-### Port Already in Use
-- Backend: Change PORT in `.env` (default 5000)
-- Frontend: Vite will use next available port
+## Support
 
-### CORS Issues
-- Verify `CLIENT_URL` matches your frontend URL
-- Check frontend is making requests to correct API endpoint
-
-## 📝 License
-
-MIT
-
-## 👨‍💻 Developer
-
-Built with ❤️ for efficient project management.
+For issues or questions, please open an issue on GitHub.
 
 ---
 
-**Live Demo**: [Your Railway URL]
-**GitHub**: [Your Repository URL]
+**Author:** Aryan
+**Last Updated:** May 1, 2026

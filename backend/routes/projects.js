@@ -1,23 +1,50 @@
-import express from 'express';
-import {
+const express = require('express');
+const { body } = require('express-validator');
+const { authMiddleware } = require('../middleware/auth');
+const {
   createProject,
   getUserProjects,
   getProject,
   updateProject,
-  addProjectMember,
-  getProjectMembers,
-  removeProjectMember,
-  projectValidation
-} from '../controllers/projectController.js';
+  addMember,
+  removeMember,
+  deleteProject,
+} = require('../controllers/projectController');
 
 const router = express.Router();
 
-router.post('/', projectValidation, createProject);
-router.get('/', getUserProjects);
-router.get('/:projectId', getProject);
-router.put('/:projectId', projectValidation, updateProject);
-router.post('/:projectId/members', addProjectMember);
-router.get('/:projectId/members', getProjectMembers);
-router.delete('/:projectId/members/:memberId', removeProjectMember);
+// Create a new project
+router.post(
+  '/',
+  authMiddleware,
+  [
+    body('name', 'Project name is required').trim().notEmpty(),
+    body('description', 'Description is required').trim().notEmpty(),
+  ],
+  createProject
+);
 
-export default router;
+// Get all projects for user
+router.get('/', authMiddleware, getUserProjects);
+
+// Get single project
+router.get('/:projectId', authMiddleware, getProject);
+
+// Update project
+router.put(
+  '/:projectId',
+  authMiddleware,
+  [body('name', 'Project name is required').trim().notEmpty()],
+  updateProject
+);
+
+// Add member to project
+router.post('/:projectId/members', authMiddleware, addMember);
+
+// Remove member from project
+router.delete('/:projectId/members', authMiddleware, removeMember);
+
+// Delete project
+router.delete('/:projectId', authMiddleware, deleteProject);
+
+module.exports = router;

@@ -1,43 +1,52 @@
-import jwt from 'jsonwebtoken';
+const jwt = require('jsonwebtoken');
 
-export const authMiddleware = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-
+const authMiddleware = (req, res, next) => {
   try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+
+    if (!token) {
+      return res.status(401).json({ message: 'No token, authorization denied' });
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    req.userId = decoded.userId;
+    req.userRole = decoded.role;
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
+    res.status(401).json({ message: 'Token is not valid' });
   }
 };
 
-export const adminOnly = (req, res, next) => {
-  if (req.user.role !== 'ADMIN') {
-    return res.status(403).json({ error: 'Admin access required' });
+const adminMiddleware = (req, res, next) => {
+  if (req.userRole !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
   }
   next();
 };
 
-export const projectAdminOnly = async (req, res, next) => {
-  const { projectId } = req.params;
-  const userId = req.user.id;
-
+const checkProjectAccess = async (req, res, next) => {
   try {
-    const result = await query(
-      'SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2 AND role = $3',
-      [projectId, userId, 'ADMIN']
+    const Project = require('../models/Project');
+    const project = await Project.findById(req.params.projectId);
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    const isOwner = project.owner.toString() === req.userId;
+    const isMember = project.members.some(
+      (m) => m.userId.toString() === req.userId
     );
 
-    if (result.rows.length === 0) {
-      return res.status(403).json({ error: 'Project admin access required' });
+    if (!isOwner && !isMember && req.userRole !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' });
     }
+
+    req.project = project;
     next();
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: 'Server error' });
   }
 };
+
+module.exports = { authMiddleware, adminMiddleware, checkProjectAccess };

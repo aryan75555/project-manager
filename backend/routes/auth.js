@@ -1,18 +1,34 @@
-import express from 'express';
-import { signup, login, getCurrentUser, signupValidation, loginValidation } from '../controllers/authController.js';
+const express = require('express');
+const { body } = require('express-validator');
+const { signup, login, getCurrentUser } = require('../controllers/authController');
+const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.post('/signup', signupValidation, signup);
-router.post('/login', loginValidation, login);
-router.get('/me', (req, res, next) => {
-  // Simple middleware to check token
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  req.user = { id: req.query.userId }; // In real app, decode JWT
-  next();
-}, getCurrentUser);
+// Signup
+router.post(
+  '/signup',
+  [
+    body('name', 'Name is required').trim().notEmpty(),
+    body('email', 'Please include valid email').isEmail(),
+    body('password', 'Password must be 6 or more characters').isLength({
+      min: 6,
+    }),
+  ],
+  signup
+);
 
-export default router;
+// Login
+router.post(
+  '/login',
+  [
+    body('email', 'Please include valid email').isEmail(),
+    body('password', 'Password is required').notEmpty(),
+  ],
+  login
+);
+
+// Get current user
+router.get('/me', authMiddleware, getCurrentUser);
+
+module.exports = router;

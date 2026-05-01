@@ -1,227 +1,141 @@
-# ProjectHub - Deployment Guide
+# Railway Deployment Guide
 
-## 🚀 Railway Deployment (Recommended)
+This guide will help you deploy the Project Manager application on Railway.
 
-### Prerequisites
-- GitHub account (with repo pushed)
-- Railway account (railway.app)
+## Prerequisites
 
-### Step-by-Step Deployment
+- GitHub account with this repository
+- Railway account (https://railway.app)
+- MongoDB Atlas account (https://www.mongodb.com/cloud/atlas)
 
-#### 1. Prepare Your Repository
+## Step 1: Set Up MongoDB Atlas
+
+1. Go to MongoDB Atlas and create a free account
+2. Create a new cluster
+3. Create a database user with username and password
+4. Whitelist your IP or allow all IPs (0.0.0.0/0)
+5. Get your connection string and save it
+
+Connection string format:
+```
+mongodb+srv://username:password@cluster.mongodb.net/project-manager?retryWrites=true&w=majority
+```
+
+## Step 2: Push Code to GitHub
 
 ```bash
+cd project-manager
+
+# Initialize git if not already done
 git init
+
+# Add all files
 git add .
-git commit -m "Initial ProjectHub commit"
-git remote add origin https://github.com/yourusername/project-manager.git
-git branch -M main
-git push -u origin main
+
+# Commit changes
+git commit -m "Initial commit: Full-stack project manager application"
+
+# Push to GitHub
+git push origin main
 ```
 
-#### 2. Create Railway Account
-- Go to [railway.app](https://railway.app)
-- Sign up with GitHub
-- Create new project
+## Step 3: Deploy Backend on Railway
 
-#### 3. Connect GitHub Repository
-- Click "New Project"
-- Select "Deploy from GitHub repo"
-- Authorize GitHub access
-- Select your `project-manager` repository
-- Railway will auto-detect and create services
+1. Go to https://railway.app and sign in
+2. Click "New Project"
+3. Select "Deploy from GitHub repo"
+4. Select your repository
+5. Choose the "backend" directory as the root
+6. Click "Deploy"
 
-#### 4. Add PostgreSQL Database
-- In Railway dashboard
-- Click "+" to add service
-- Select "PostgreSQL"
-- Railway automatically creates `DATABASE_URL` environment variable
+## Step 4: Add Environment Variables to Backend
 
-#### 5. Configure Backend Service
+In Railway dashboard for your backend service:
 
-**Environment Variables:**
-```
-NODE_ENV=production
-JWT_SECRET=generate-random-secret-key-here
-CLIENT_URL=https://your-frontend-domain.railway.app
-```
+1. Click on your backend service
+2. Go to "Variables" tab
+3. Add the following variables:
+   - `PORT`: `5000`
+   - `MONGODB_URI`: Your MongoDB connection string
+   - `JWT_SECRET`: Generate a strong secret (e.g., use `openssl rand -hex 32`)
+   - `NODE_ENV`: `production`
 
-**Build Command:**
-```
-npm install --prefix backend
-```
+4. Click "Save" and Railway will redeploy automatically
 
-**Start Command:**
-```
-npm start --prefix backend
-```
+## Step 5: Get Backend URL
 
-**Add Custom Domain (optional):**
-- Go to Settings
-- Add domain like `api.projecthub.railway.app`
+After deployment:
+1. Go to your backend service in Railway
+2. Under "Networking", copy the public URL
+3. It will look like: `https://project-manager-backend.up.railway.app`
 
-#### 6. Configure Frontend Service
+## Step 6: Deploy Frontend on Railway
 
-**Build Command:**
-```
-npm install --prefix frontend && npm run build --prefix frontend
-```
+1. In Railway, click "New" → "New Project"
+2. Select "Deploy from GitHub repo"
+3. Select your repository
+4. Choose the "frontend" directory as root
+5. Add environment variables:
+   - `REACT_APP_API_URL`: Your backend URL (e.g., `https://project-manager-backend.up.railway.app/api`)
+   - `CI`: `false` (to prevent build failures on warnings)
 
-**Start Command:**
-```
-npm run preview --prefix frontend
-```
+6. Click "Deploy"
 
-**Environment Variables:**
-```
-VITE_API_URL=https://your-backend-domain/api
-```
+## Step 7: Update Backend CORS
 
-**Custom Domain:**
-- Add domain like `projecthub.railway.app`
+In `backend/server.js`, update CORS to allow your frontend domain:
 
-#### 7. Deploy
+```javascript
+const cors = require('cors');
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://your-frontend-railway-url.up.railway.app'
+];
 
-- Push changes to GitHub
-- Railway will auto-deploy
-- Check deployment logs
-- Test live URL
-
-### Environment Variables Checklist
-
-**Backend:**
-- ✅ DATABASE_URL (auto from PostgreSQL)
-- ✅ JWT_SECRET (generate unique)
-- ✅ NODE_ENV = production
-- ✅ CLIENT_URL = frontend URL
-- ✅ PORT = 5000
-
-**Frontend:**
-- ✅ VITE_API_URL = backend API URL
-
-### Monitoring & Logs
-
-In Railway Dashboard:
-- View live logs
-- Check deployment history
-- Monitor resource usage
-- Restart services if needed
-
-### Troubleshooting
-
-**Database Error:**
-```
-- Verify PostgreSQL service is running
-- Check DATABASE_URL format
-- View database logs in Railway
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 ```
 
-**CORS Errors:**
-```
-- Ensure CLIENT_URL matches frontend domain
-- Check VITE_API_URL in frontend
-- Verify backend CORS middleware
-```
+## Step 8: Verify Deployment
 
-**Port Issues:**
-```
-- Railway auto-assigns ports
-- Check PORT environment variable
-- View service logs
-```
+1. Visit your frontend Railway URL
+2. Sign up for a new account
+3. Create a project
+4. Create a task
+5. Check the dashboard
 
-**Build Failures:**
-```
-- Check deployment logs
-- Verify npm scripts exist
-- Ensure dependencies install correctly
-```
+## Troubleshooting
 
-### Post-Deployment Testing
+### Backend not connecting to MongoDB
+- Verify `MONGODB_URI` is correct
+- Check if IP is whitelisted in MongoDB Atlas
 
-1. **Visit Frontend URL**
-   ```
-   https://projecthub.railway.app
-   ```
+### Frontend not connecting to backend
+- Verify `REACT_APP_API_URL` is correct
+- Check CORS settings in backend
+- Make sure backend is running
 
-2. **Test Authentication**
-   - Sign up new account
-   - Login
-   - Verify token storage
+### Build failures
+- Set `CI=false` in frontend environment variables
+- Check logs in Railway dashboard
 
-3. **Test Main Features**
-   - Create project (Admin)
-   - Add team members
-   - Create tasks
-   - Update task status
-   - View dashboard
+## Live Application
 
-4. **Check API Health**
-   ```
-   https://your-backend-url/api/health
-   ```
+- **Frontend URL**: https://your-frontend.up.railway.app
+- **Backend URL**: https://your-backend.up.railway.app
+- **API Health Check**: https://your-backend.up.railway.app/api/health
 
-## 📱 Alternative Deployment Options
+## Cost
 
-### Heroku (if Railway is unavailable)
-```bash
-heroku login
-heroku create your-project-name
-git push heroku main
-heroku config:set JWT_SECRET=your_secret
-heroku addons:create heroku-postgresql:hobby-dev
-```
+Railroad provides a free tier with:
+- 512MB RAM
+- 1 CPU shared core
+- Enough for development/testing
 
-### Render
-- Connect GitHub repo
-- Auto-detect backend service
-- Add PostgreSQL database
-- Deploy
-
-### Vercel (Frontend only)
-- Connect GitHub repo
-- Set `VITE_API_URL` environment variable
-- Deploy
-
-## 🔐 Security Checklist
-
-- ✅ JWT_SECRET is unique and secure
-- ✅ Password hashing enabled (bcryptjs)
-- ✅ CORS properly configured
-- ✅ HTTPS enforced
-- ✅ SQL injection protected (parameterized queries)
-- ✅ Environment variables not committed to repo
-- ✅ Rate limiting considered (future)
-
-## 📊 Performance Tips
-
-1. **Database Indexing:**
-   - Already added indexes on foreign keys
-   - Consider adding more for frequent queries
-
-2. **Caching:**
-   - Implement Redis for session storage (optional)
-   - Cache frequently accessed data
-
-3. **Monitoring:**
-   - Set up error tracking (Sentry)
-   - Monitor performance metrics
-
-## 🔄 Continuous Deployment
-
-Railway auto-deploys on every GitHub push:
-1. Push code to main branch
-2. GitHub webhook triggers Railway
-3. Services rebuild and redeploy
-4. Live updates within minutes
-
-## 📞 Support & Resources
-
-- Railway Docs: docs.railway.app
-- Express Documentation: expressjs.com
-- React Documentation: react.dev
-- PostgreSQL Documentation: postgresql.org
+Perfect for this project!
 
 ---
 
-**Questions?** Check the main README.md or QUICKSTART.md files.
+For more help, visit: https://docs.railway.app

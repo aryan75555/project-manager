@@ -1,27 +1,24 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import '../styles/navbar.css';
 
-export const Navbar = ({ user, onLogout }) => {
+const Navbar = ({ onLogout }) => {
+  const { user } = useAuth();
+
   return (
-    <nav className="bg-blue-600 text-white p-4">
-      <div className="max-w-7xl mx-auto flex justify-between items-center">
-        <Link to="/" className="text-2xl font-bold">
-          📊 ProjectHub
-        </Link>
-        <div className="flex items-center gap-6">
-          {user && (
-            <>
-              <span className="text-sm">{user.name} ({user.role})</span>
-              <button
-                onClick={onLogout}
-                className="bg-red-500 px-4 py-2 rounded-lg hover:bg-red-600 transition"
-              >
-                Logout
-              </button>
-            </>
-          )}
+    <nav className="navbar">
+      <div className="navbar-container">
+        <h1 className="navbar-title">📋 Project Manager</h1>
+        <div className="navbar-right">
+          <span className="user-info">{user?.name}</span>
+          <span className="user-role">{user?.role}</span>
+          <button className="logout-btn" onClick={onLogout}>
+            Logout
+          </button>
         </div>
       </div>
     </nav>
   );
 };
+
+export default Navbar;

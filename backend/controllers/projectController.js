@@ -1,185 +1,204 @@
-import { query } from '../db/pool.js';
-import { validationResult, body } from 'express-validator';
+const Project = require('../models/Project');
+const User = require('../models/User');
+const { validationResult } = require('express-validator');
 
-export const projectValidation = [
-  body('name').notEmpty().trim(),
-  body('description').optional().trim()
-];
-
-// Create project
-export const createProject = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { name, description } = req.body;
-  const adminId = req.user.id;
-
+// Create a new project
+exports.createProject = async (req, res) => {
   try {
-    const result = await query(
-      'INSERT INTO projects (name, description, admin_id) VALUES ($1, $2, $3) RETURNING *',
-      [name, description || null, adminId]
-    );
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
 
-    const projectId = result.rows[0].id;
+    const { name, description } = req.body;
 
-    // Add admin as project member
-    await query(
-      'INSERT INTO project_members (project_id, user_id, role) VALUES ($1, $2, $3)',
-      [projectId, adminId, 'ADMIN']
-    );
+    const project = new Project({
+      name,
+      description,
+      owner: req.userId,
+      members: [
+        {
+          userId: req.userId,
+          role: 'admin',
+        },
+      ],
+    });
 
-    res.status(201).json(result.rows[0]);
+    await project.save();
+    await project.populate('owner members.userId');
+
+    res.status(201).json({
+      message: 'Project created successfully',
+      project,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
 // Get all projects for user
-export const getUserProjects = async (req, res) => {
+exports.getUserProjects = async (req, res) => {
   try {
-    const result = await query(`
-      SELECT DISTINCT p.* FROM projects p
-      INNER JOIN project_members pm ON p.id = pm.project_id
-      WHERE pm.user_id = $1
-      ORDER BY p.created_at DESC
-    `, [req.user.id]);
+    const projects = await Project.find({
+      $or: [
+        { owner: req.userId },
+        { 'members.userId': req.userId },
+      ],
+    })
+      .populate('owner', 'name email')
+      .populate('members.userId', 'name email');
 
-    res.json(result.rows);
+    res.json(projects);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// Get project details
-export const getProject = async (req, res) => {
-  const { projectId } = req.params;
-
+// Get single project
+exports.getProject = async (req, res) => {
   try {
-    // Check if user has access
-    const accessCheck = await query(
-      'SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2',
-      [projectId, req.user.id]
-    );
+    const project = await Project.findById(req.params.projectId)
+      .populate('owner', 'name email')
+      .populate('members.userId', 'name email');
 
-    if (accessCheck.rows.length === 0) {
-      return res.status(403).json({ error: 'Access denied' });
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
     }
 
-    const result = await query('SELECT * FROM projects WHERE id = $1', [projectId]);
-    res.json(result.rows[0]);
+    res.json(project);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
 // Update project
-export const updateProject = async (req, res) => {
-  const { projectId } = req.params;
-  const { name, description, status } = req.body;
-
+exports.updateProject = async (req, res) => {
   try {
-    // Check if user is admin
-    const adminCheck = await query(
-      'SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2 AND role = $3',
-      [projectId, req.user.id, 'ADMIN']
-    );
-
-    if (adminCheck.rows.length === 0) {
-      return res.status(403).json({ error: 'Admin access required' });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    const result = await query(
-      'UPDATE projects SET name = $1, description = $2, status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *',
-      [name, description, status, projectId]
-    );
+    const { name, description, status } = req.body;
+    const project = await Project.findById(req.params.projectId);
 
-    res.json(result.rows[0]);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    if (project.owner.toString() !== req.userId && req.userRole !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    if (name) project.name = name;
+    if (description) project.description = description;
+    if (status) project.status = status;
+
+    await project.save();
+    await project.populate('owner members.userId');
+
+    res.json({
+      message: 'Project updated successfully',
+      project,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
 // Add member to project
-export const addProjectMember = async (req, res) => {
-  const { projectId } = req.params;
-  const { email, role } = req.body;
-
+exports.addMember = async (req, res) => {
   try {
-    // Check if user is admin
-    const adminCheck = await query(
-      'SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2 AND role = $3',
-      [projectId, req.user.id, 'ADMIN']
-    );
+    const { memberId, role } = req.body;
+    const project = await Project.findById(req.params.projectId);
 
-    if (adminCheck.rows.length === 0) {
-      return res.status(403).json({ error: 'Admin access required' });
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
     }
 
-    // Find user by email
-    const userResult = await query('SELECT id FROM users WHERE email = $1', [email]);
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+    if (project.owner.toString() !== req.userId && req.userRole !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
     }
 
-    const userId = userResult.rows[0].id;
-
-    // Add member
-    const result = await query(
-      'INSERT INTO project_members (project_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT (project_id, user_id) DO UPDATE SET role = $3 RETURNING *',
-      [projectId, userId, role || 'MEMBER']
+    // Check if member already exists
+    const memberExists = project.members.some(
+      (m) => m.userId.toString() === memberId
     );
 
-    res.status(201).json(result.rows[0]);
+    if (memberExists) {
+      return res.status(400).json({ message: 'Member already in project' });
+    }
+
+    // Check if user exists
+    const user = await User.findById(memberId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    project.members.push({
+      userId: memberId,
+      role: role || 'member',
+    });
+
+    await project.save();
+    await project.populate('owner members.userId');
+
+    res.json({
+      message: 'Member added successfully',
+      project,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// Get project members
-export const getProjectMembers = async (req, res) => {
-  const { projectId } = req.params;
-
+// Remove member from project
+exports.removeMember = async (req, res) => {
   try {
-    const result = await query(`
-      SELECT pm.id, pm.role, u.id as user_id, u.name, u.email
-      FROM project_members pm
-      INNER JOIN users u ON pm.user_id = u.id
-      WHERE pm.project_id = $1
-    `, [projectId]);
+    const { memberId } = req.body;
+    const project = await Project.findById(req.params.projectId);
 
-    res.json(result.rows);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    if (project.owner.toString() !== req.userId && req.userRole !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    project.members = project.members.filter(
+      (m) => m.userId.toString() !== memberId
+    );
+
+    await project.save();
+    await project.populate('owner members.userId');
+
+    res.json({
+      message: 'Member removed successfully',
+      project,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
 
-// Remove project member
-export const removeProjectMember = async (req, res) => {
-  const { projectId, memberId } = req.params;
-
+// Delete project
+exports.deleteProject = async (req, res) => {
   try {
-    // Check if user is admin
-    const adminCheck = await query(
-      'SELECT * FROM project_members WHERE project_id = $1 AND user_id = $2 AND role = $3',
-      [projectId, req.user.id, 'ADMIN']
-    );
+    const project = await Project.findById(req.params.projectId);
 
-    if (adminCheck.rows.length === 0) {
-      return res.status(403).json({ error: 'Admin access required' });
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
     }
 
-    await query('DELETE FROM project_members WHERE id = $1', [memberId]);
-    res.json({ message: 'Member removed successfully' });
+    if (project.owner.toString() !== req.userId && req.userRole !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    await Project.findByIdAndDelete(req.params.projectId);
+
+    res.json({ message: 'Project deleted successfully' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: error.message });
   }
 };
